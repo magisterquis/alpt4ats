@@ -1,0 +1,43 @@
+--- ../argv_from_environment/argv_from_environment.go	Sat Sep  7 18:45:53 2024
++++ ./argv_from_stdin.go	Sat Sep  7 18:45:53 2024
+@@ -1,10 +1,10 @@
+-// Program argv_from_environment - argv_from_source with optional environment
+-// variables
++// Program argv_from_stdin - argv_from_environment which also tries to read
++// config from stdin.
+ package main
+ 
+ /*
+- * argv_from_environment.go
+- * argv_from_source, but also which queries environment varibles
++ * argv_from_stdin.go
++ * argv_from_environment, but also tries to read config from stdin
+  * By J. Stuart McMurray
+  * Created 20240901
+  * Last Modified 20240906
+@@ -12,6 +12,9 @@
+ 
+ import (
+ 	"cmp"
++	"errors"
++	"fmt"
++	"io"
+ 	"log"
+ 	"net"
+ 	"os"
+@@ -30,6 +33,15 @@
+ 	/* Config from environment overrides compile-time config. */
+ 	Address = cmp.Or(os.Getenv(AddressEnvVar), Address)
+ 	File = cmp.Or(os.Getenv(FileEnvVar), File)
++
++	/* Config from stdin overrides config from environment. */
++	if _, err := fmt.Fscan(
++		os.Stdin,
++		&Address,
++		&File,
++	); nil != err && !errors.Is(err, io.EOF) {
++		log.Fatalf("Error reading config from stdin: %s", err)
++	}
+ 
+ 	/* Connect to the server. */
+ 	c, err := net.Dial("tcp", Address)

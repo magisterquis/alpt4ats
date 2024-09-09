@@ -1,0 +1,39 @@
+--- ../argv_from_file_descriptor/argv_from_file_descriptor.go	Sat Sep  7 18:45:53 2024
++++ comms_over_tls.go	Sat Sep  7 18:45:54 2024
+@@ -1,22 +1,21 @@
+-// Program argv_from_file_descriptor - argv_from_stdin but reads config from a
+-// different file descriptor number.
++// Program comms_over_tls - argv_from_file_descriptor but uses TLS
+ package main
+ 
+ /*
+- * argv_from_file_descriptior.go
+- * argv_from_stdin, but a different file descriptor number
++ * comms_over_tls.go
++ * argv_from_file_descriptor, but with TLS comms
+  * By J. Stuart McMurray
+- * Created 20240902
++ * Created 20240905
+  * Last Modified 20240906
+  */
+ 
+ import (
+ 	"cmp"
++	"crypto/tls"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+ 	"log"
+-	"net"
+ 	"os"
+ 	"os/exec"
+ 	"syscall"
+@@ -49,7 +48,7 @@
+ 	}
+ 
+ 	/* Connect to the server. */
+-	c, err := net.Dial("tcp", Address)
++	c, err := tls.Dial("tcp", Address, nil)
+ 	if nil != err {
+ 		log.Fatalf("Error connecting to server: %s", err)
+ 	}

