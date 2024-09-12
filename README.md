@@ -3,6 +3,8 @@ Code for the talk "A Lazy Programmer's Tips For Avoiding The SOC"
 The code in this repository was used for the talk "A Lazy Programmer's Tips for
 Avoiding The SOC," presented at BSides Belfast on 12 September 2024.
 
+Slides: https://docs.google.com/presentation/d/1yUaalv-a_5oI9qYMUC7VCRqgkwIQFtlJcRWxI5TaAaE
+
 Contents
 --------
 Each subdirectory of [`src`](./src) in this repository corresponds to one of
